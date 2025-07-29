@@ -1,31 +1,30 @@
 from dronekit import LocationGlobalRelative, LocationGlobal
 from Drone import Drone
 import numpy as np
-from helpers import calculate_desired_positions_global, calculate_yaw_angle, interpolate_waypoints
+import helpers
+#from helpers import calculate_desired_positions_global, calculate_yaw_angle, interpolate_waypoints, save_all_drone_missions
 import time
 from geopy.distance import geodesic
+import formation_setting
 
-
-''' Loosely based on the following paper: https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=6798711'''
 
 class FormationFlying(object):
     def __init__(self, num_uavs: int, port: int, takeoff_altitude: int, collision_threshold: int=10.0, rtl_alt: int =2000):
         self.num_uavs = num_uavs
         self.drones = []
         for i in range(num_uavs):
-            #self.drones.append(Vehicle(f'udpin:localhost:{port + 10 * i}'))
             self.drones.append(Drone(f'tcp:localhost:{port + 10 * i}')) #port: 5762
 
         self.takeoff_altitude = takeoff_altitude # meter
-        self.max_velocity = 4  # Reduced for better control(m/sec)
-        self.wp_radius = 1.5  # Adjusted for better tolerance
-        self.formation_tolerance = 0.5  # Tolerance for formation achievement
-        self.collision_threshold = collision_threshold
+        self.speed = 4  # m/sec
+        #self.wp_radius = 1.5  # Adjusted for better tolerance
+        #self.formation_tolerance = 0.5  # Tolerance for formation achievement
+        #self.collision_threshold = collision_threshold
         self.rtl_alt=rtl_alt #cm
         
         # Formation control gains
-        self.K1 = np.array([[0.7, 0], [0, 0.7]])  # Acts on the position error (Proportional Gain)
-        self.damping = 0.4  # Damping factor to control high frequency velocity changes (overshoot and oscillations)
+        #self.K1 = np.array([[0.7, 0], [0, 0.7]])  # Acts on the position error (Proportional Gain)
+        #self.damping = 0.4  # Damping factor to control high frequency velocity changes (overshoot and oscillations)
        
         # Define square formation offsets (in meters, relative to the formation center)
         self.formation_offsets = [
@@ -203,7 +202,9 @@ if __name__ == "__main__":
     port = 5762
     takeoff_altitude = 15
     #formation_center=LocationGlobalRelative(22.9051598, 120.2721620 , 0) 
-    waypoints = [
+    all_drone_missions = helpers.save_all_drone_missions()
+    
+    waypoints =  [
         LocationGlobalRelative(22.9051598, 120.2721620, 0), # formation_center
         LocationGlobalRelative(22.9061728, 120.2742004, 0),
         LocationGlobalRelative(22.9067361, 120.2721834, 0),

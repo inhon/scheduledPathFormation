@@ -1,8 +1,14 @@
+from operator import index
 from dronekit import LocationGlobalRelative
 from geopy import distance
 from geopy.distance import geodesic
 import math
 import numpy as np
+import os
+from pymavlink import mavutil  # Import mavutil to use MAV_FRAME and MAV_CMD constants
+import time
+import formation_setting
+from waypoints_generator import WAYPOINT_FILE
 
 def calculate_distance_lla(pos1:LocationGlobalRelative, pos2:LocationGlobalRelative) ->float:
     # Calculate the distance between two points in meters
@@ -46,95 +52,175 @@ def calculate_yaw_angle(current_pos: LocationGlobalRelative, center_pos: Locatio
     yaw_deg = math.degrees(yaw_rad)
     return (yaw_deg + 360) % 360  # 確保角度範圍是 [0, 360)
 
-def extract_waypoints(filepath):
+def get_bearing(loc1: LocationGlobalRelative, loc2: LocationGlobalRelative) -> float:
     """
-    從Mission Planner的航點檔案中提取航點資訊。
-
+    計算從 loc1 到 loc2 的偏航角 (bearing)。
     Args:
-        filepath (str): 航點檔案的路徑。
-
+        loc1 (LocationGlobalRelative): 起始位置
+        loc2 (LocationGlobalRelative): 結束位置
     Returns:
-        list: 包含字典的列表，每個字典代表一個航點，
-              鍵包括 'latitude', 'longitude', 'altitude' 等。
-              如果檔案格式不符或讀取失敗，則返回空列表。
+        float: 偏航角 (0-360 度，北為 0，順時針增加)
+    """
+    lat1 = math.radians(loc1.lat)
+    lon1 = math.radians(loc1.lon)
+    lat2 = math.radians(loc2.lat)
+    lon2 = math.radians(loc2.lon)
+
+    delta_lon = lon2 - lon1
+
+    x = math.sin(delta_lon) * math.cos(lat2)
+    y = math.cos(lat1) * math.sin(lat2) - (math.sin(lat1) * math.cos(lat2) * math.cos(delta_lon))
+
+    bearing_rad = math.atan2(x, y)
+    bearing_deg = math.degrees(bearing_rad)
+    
+    # 確保角度在 0 到 360 之間
+    bearing_deg = (bearing_deg + 360) % 360
+    
+    return bearing_deg
+
+# 從 .waypoints 檔案讀取航點
+def load_waypoints_from_file(filepath: str) -> list:
+    """
+    從 Mission Planner .waypoints 檔案讀取航點座標。
+    檔案格式預期為：QGC WPL 110 等開頭，然後每行包含航點數據。
+    主要提取緯度、經度和高度。
     """
     waypoints = []
+    # 檢查檔案是否存在
+    if not os.path.exists(filepath):
+        print(f"錯誤：航點檔案 '{filepath}' 不存在。請檢查路徑或確保檔案在程式碼相同目錄下。")
+        return [] 
+
     try:
         with open(filepath, 'r') as f:
-            lines = f.readlines()
+            for i, line in enumerate(f):
+                if i == 0: # 跳過檔案頭 (QGC WPL 110)
+                    if not line.strip().startswith("QGC WPL 110"):
+                        print("警告：這可能不是一個標準的 Mission Planner .waypoints 檔案。")
+                    continue # 繼續處理下一行
+                
+                parts = line.strip().split('\t') # 假設是 Tab 分隔，如果不是請改為 ' '
+                
+                # 至少要有 11 個欄位 (索引 0-10) 來獲取 Lat, Lon, Alt
+                if len(parts) < 11:
+                    print(f"警告：航點檔案行 {i+1} 格式不正確，跳過：{line.strip()}")
+                    continue
 
-        # Mission Planner 航點檔案通常會有一行標頭，例如 "QGC WPL 110"
-        # 並且航點資訊從第二行開始
-        if not lines or not lines[0].strip().startswith("QGC WPL"):
-            print("錯誤：檔案格式可能不是Mission Planner的航點檔案。")
-            return []
+                try:
+                    # 預期格式為: Index Current WP Frame Command Param1 Param2 Param3 Param4 X Y Z Autocontinue
+                    # 我們需要 X (緯度), Y (經度), Z (高度)
+                    index = int(parts[0])
+                    command_id = int(parts[3])
+                    # 忽略 HOME (Index 0) 與 TAKEOFF 航點
+                    if index == 0 or command_id == mavutil.mavlink.MAV_CMD_NAV_TAKEOFF:
+                        continue
+                                        
+                    lat = float(parts[8])
+                    lon = float(parts[9])
+                    alt = float(parts[10])
 
-        for i, line in enumerate(lines[1:]):  # 從第二行開始解析航點
-            parts = line.strip().split('\t')  # Mission Planner 通常使用 Tab 分隔
+                    waypoints.append(LocationGlobalRelative(lat, lon, alt))
 
-            if len(parts) < 12:  # 檢查是否包含足夠的列（根據QGC WPL 110標準）
-                print(f"警告：第 {i+2} 行的格式不完整，跳過。")
-                continue
+                except (ValueError, IndexError) as e:
+                    print(f"解析航點檔案行 {i+1} 時的數據轉換錯誤：{line.strip()} - {e}")
+                    continue
+    except IOError as e:
+        print(f"無法打開或讀取檔案 '{filepath}': {e}")
+        return []
 
-            try:
-                # 根據 QGC WPL 110 標準，常用的航點資訊位於以下索引：
-                # 0: 序列號
-                # 1: 當前（0）/非當前（1）
-                # 2: 座標系 (例如：3代表 WGS84)
-                # 3: 任務命令 (例如：16代表 WAYPOINT)
-                # 4-6: 參數 1-3
-                # 7: 緯度 (latitude)
-                # 8: 經度 (longitude)
-                # 9: 高度 (altitude)
-                # 10: 自動重複 (0/1)
-                # 11: 航點類型 (例如：0代表 普通航點，1代表 起飛，2代表 降落)
-
-                waypoint = {
-                    'sequence': int(parts[0]),
-                    'current': int(parts[1]),
-                    'coordinate_frame': int(parts[2]),
-                    'command': int(parts[3]),
-                    'param1': float(parts[4]),
-                    'param2': float(parts[5]),
-                    'param3': float(parts[6]),
-                    'latitude': float(parts[7]),
-                    'longitude': float(parts[8]),
-                    'altitude': float(parts[9]),
-                    'autocontinue': int(parts[10]),
-                    'mission_type': int(parts[11])
-                }
-                waypoints.append(waypoint)
-            except ValueError as e:
-                print(f"錯誤：解析第 {i+2} 行數據時發生錯誤：{e}。跳過此行。")
-                continue
-
-    except FileNotFoundError:
-        print(f"錯誤：找不到檔案 '{filepath}'。請檢查路徑是否正確。")
-    except Exception as e:
-        print(f"讀取或處理檔案時發生未知錯誤：{e}")
-
+    print(f"成功從 '{filepath}' 載入 {len(waypoints)} 個航點。")
     return waypoints
+
+def get_location_metres(original_location:LocationGlobalRelative, dNorth, dEast, dDown=0):
+    """
+    Returns a LocationGlobal object containing the latitude/longitude `dNorth`, `dEast`
+    of the `original_location`. The `dDown` is optional and defaults to 0.
+    This method is accurate for short distances (up to a few hundred meters).
+    """
+    earth_radius = 6378137.0 # WGS84 earth radius in metres
+
+    # Coordinate offsets in radians
+    dLat = dNorth / earth_radius
+    dLon = dEast / (earth_radius * math.cos(math.radians(original_location.lat)))
+
+    # New position in decimal degrees
+    newlat = original_location.lat + math.degrees(dLat)
+    newlon = original_location.lon + math.degrees(dLon)
+    
+    newalt = original_location.alt - dDown 
+
+    return LocationGlobalRelative(newlat, newlon, newalt)
+
+def save_all_drone_missions():
+    """
+    儲存所有無人機的航線規劃， 每個航點前要加入1航點，例如由航點1到航點2，在航點2隊形方向(航點1到航點2的方向)及(航點2到航點3的方向)
+    """
+    #創立儲存所有無人機的航線規劃，字典的key對應無人機編號，內容為虛擬航點的列表
+    #{1: [], 2: [], 3: [], 4: [], 5: []}
+    all_drone_missions = {i: [] for i in range(1, formation_setting.formation_params["num_drones"] + 1)}
+
+    # 將waypoint檔案讀到的航點存入 virtual_center_waypoints_objs
+    virtual_center_waypoints_objs = load_waypoints_from_file(formation_setting.waypoint_file)
+    #virtual_center_waypoints_objs : 虛擬航點(LocationGlobalRelative) 物件的列表
+    if not virtual_center_waypoints_objs:
+        print("警告：未能讀取到任何虛擬航點")
+        return
+
+    # 根據虛擬航線和隊形偏移，生成每台無人機的實際航線
+    # 為每個航點計算其目標偏航角 (從當前航點指向下一個航點)
+    waypoint_bearings = []
+    for i in range(len(virtual_center_waypoints_objs)):
+        current_wp = virtual_center_waypoints_objs[i]
+        # 下一個航點，如果是最後一個，則循環到第一個
+        next_wp = virtual_center_waypoints_objs[(i + 1) % len(virtual_center_waypoints_objs)]
+
+        if len(virtual_center_waypoints_objs) == 1:
+            waypoint_bearings.append(None) # 自動偏航，如果只有一個航點
+        else:
+            bearing = get_bearing(current_wp, next_wp)
+            waypoint_bearings.append(bearing)
+
+    # 遍歷虛擬中心航線的每個航點
+    for i, virtual_waypoint in enumerate(virtual_center_waypoints_objs):
+        # 獲取這個航點應該設定的偏航角 (隊形的目標方向)
+        target_yaw_degrees = waypoint_bearings[i]
+        target_yaw_radians = math.radians(target_yaw_degrees) if target_yaw_degrees is not None else None
+
+        # 對於每台無人機
+        for drone_id in range(1, formation_setting.formation_params["num_drones"] + 1):
+            dx_body, dy_body, dz = formation_setting.drone_offsets_body_frame[drone_id]
+            
+            # 根據目標偏航角旋轉隊形局部偏移量，得到地球座標系下的偏移量 (dEast, dNorth)
+            if target_yaw_radians is not None:
+                dNorth_rotated = dx_body * math.cos(target_yaw_radians) - dy_body * math.sin(target_yaw_radians)
+                dEast_rotated = dx_body * math.sin(target_yaw_radians) + dy_body * math.cos(target_yaw_radians)
+            else:
+                # 如果沒有明確的偏航角（例如只有一個航點），則不旋轉，使用原始偏移
+                dEast_rotated = dx_body
+                dNorth_rotated = dy_body
+
+            # 計算實際航點位置
+            actual_waypoint_location = get_location_metres(
+                virtual_waypoint, 
+                dNorth_rotated,  # dNorth 偏移量
+                dEast_rotated,   # dEast 偏移量
+                dz               # dDown 偏移量 (通常為 0)
+            )
+            all_drone_missions[drone_id].append(actual_waypoint_location)
+    
+    return all_drone_missions
+
 
 # 示例用法
 if __name__ == "__main__":
     # 假設您的航點檔案名為 'mission.waypoints' 或 'mission.txt'
     # 請將 'mission.waypoints' 替換為您的實際檔案路徑
-    file_path = 'mission.waypoints'
-
-    # 創建一個模擬的航點檔案，以便運行範例
-    # 在實際應用中，您會直接讀取 Mission Planner 導出的檔案
-    with open(file_path, 'w') as f:
-        f.write("QGC WPL 110\n")
-        f.write("0\t1\t3\t16\t0.000000\t0.000000\t0.000000\t22.999000\t120.213000\t50.000000\t1\t0\n")
-        f.write("1\t0\t3\t16\t0.000000\t0.000000\t0.000000\t22.998500\t120.213500\t60.000000\t1\t0\n")
-        f.write("2\t0\t3\t16\t0.000000\t0.000000\t0.000000\t22.998000\t120.214000\t70.000000\t1\t0\n")
-        f.write("3\t0\t3\t21\t0.000000\t0.000000\t0.000000\t0.000000\t0.000000\t0.000000\t1\t0\n") # 範例：RTL (Return to Launch)
-
-    extracted_waypoints = extract_waypoints(file_path)
-
-    if extracted_waypoints:
-        print(f"\n成功提取 {len(extracted_waypoints)} 個航點：")
-        for wp in extracted_waypoints:
-            print(f"  序列號: {wp['sequence']}, 緯度: {wp['latitude']:.6f}, 經度: {wp['longitude']:.6f}, 高度: {wp['altitude']:.2f}m, 命令: {wp['command']}")
-    else:
-        print("\n未能提取任何航點。")
+    #file_path = '2.waypoints'
+    #extracted_waypoints = load_waypoints_from_file(file_path)
+    all_drone_missions = save_all_drone_missions()
+    for drone_id, waypoints in all_drone_missions.items():
+        print(f"無人機 {drone_id} 的航點：")
+        for wp in waypoints:
+            print(f" 緯度: {wp.lat:.8f}, 經度: {wp.lon:.8f}, 高度: {wp.alt:.2f}m")
+    # 輸出所有無人機的航點
