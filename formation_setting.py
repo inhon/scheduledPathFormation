@@ -5,7 +5,7 @@
 # 設定隊形相關參數
 formation_params = {
     "num_drones": 5,
-    "lead_drone_id": 3,  # 隊形中心點對應的無人機，通常在V字頂點 (U3)
+    "lead_drone_id": 3,  # 隊形中心點對應的無人機，通常在倒V字頂點 (U3)
     "spacing_x": 10,   # 無人機在隊形橫向（左右）的間距 (米)
     "spacing_y": 10,   # 無人機在隊形縱向（前後）的間距 (米)
     "altitude": 30     # 編隊的預設飛行高度 (米)
@@ -24,4 +24,8 @@ drone_offsets_body_frame = {
 }
 
 waypoint_file = '2.waypoints'
+uav_speed=5 #m/sec
+takeoff_altitude=20 # meter
+rtl_alt=20 #meter
+
 

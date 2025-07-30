@@ -9,36 +9,16 @@ import formation_setting
 
 
 class FormationFlying(object):
-    def __init__(self, num_uavs: int, port: int, takeoff_altitude: int, collision_threshold: int=10.0, rtl_alt: int =2000):
+    def __init__(self, num_uavs: int, port: int, takeoff_altitude: int, rtl_alt: int =2000):
         self.num_uavs = num_uavs
         self.drones = []
         for i in range(num_uavs):
             self.drones.append(Drone(f'tcp:localhost:{port + 10 * i}')) #port: 5762
-
-        self.takeoff_altitude = takeoff_altitude # meter
-        self.speed = 4  # m/sec
-        #self.wp_radius = 1.5  # Adjusted for better tolerance
-        #self.formation_tolerance = 0.5  # Tolerance for formation achievement
-        #self.collision_threshold = collision_threshold
-        self.rtl_alt=rtl_alt #cm
+        self.takeoff_altitude = formation_setting.takeoff_altitude # meter
+        self.speed = formation_setting.uav_speed  # m/sec
+        self.rtl_alt=rtl_alt #cm        
         
-        # Formation control gains
-        #self.K1 = np.array([[0.7, 0], [0, 0.7]])  # Acts on the position error (Proportional Gain)
-        #self.damping = 0.4  # Damping factor to control high frequency velocity changes (overshoot and oscillations)
-       
-        # Define square formation offsets (in meters, relative to the formation center)
-        self.formation_offsets = [
-            np.array([-10, -10]), # north, east , unit: meter 
-            np.array([10, -10]),
-            np.array([-10, 10]),
-            np.array([10, 10])            
-        ]
-        """
-        2          3
-           center
-        0          1
-        """
-    
+   
     def set_rtl_alt_all(self):
         for index, drone in enumerate(self.drones):
             if (drone.set_rtl_alt(self.rtl_alt)==True):
