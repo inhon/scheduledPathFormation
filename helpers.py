@@ -207,6 +207,7 @@ def save_all_drone_missions():
                     dEast_rotated,   
                     dz               
                 )
+                #TODO 處裡每台無人機的飛行高度，center的無人機(3號)使用virtual_waypoint的高度，2號減5m，4號加5m
                 all_drone_missions[drone_id].append(actual_waypoint_location)
 
         target_yaw_degrees = waypoint_bearings[i]
@@ -214,7 +215,7 @@ def save_all_drone_missions():
 
         # 對於每台無人機
         for drone_id in range(1, formation_setting.formation_params["num_drones"] + 1):
-            dx_body, dy_body, dz = formation_setting.drone_offsets_body_frame[drone_id]
+            dx_body, dy_body, dz = formation_setting.drone_offsets_body_frame[drone_id] #dz=0
 
             # 根據目標偏航角旋轉隊形局部偏移量，得到地球座標系下的偏移量 (dEast, dNorth)
             if target_yaw_radians is not None:
@@ -229,7 +230,7 @@ def save_all_drone_missions():
                 virtual_waypoint, 
                 dNorth_rotated,  # dNorth 偏移量
                 dEast_rotated,   # dEast 偏移量
-                dz               # dDown 偏移量 (通常為 0)
+                dz               # dDown 偏移量 (0)
             )
            
             all_drone_missions[drone_id].append(actual_waypoint_location)
@@ -260,13 +261,12 @@ if __name__ == "__main__":
     #file_path = '2.waypoints'
     #extracted_waypoints = load_waypoints_from_file(file_path)
     all_drone_missions = save_all_drone_missions()
-    plot_mission_waypoints(all_drone_missions)
-    """
-        
+    #plot_mission_waypoints(all_drone_missions)
+           
     for drone_id, waypoints in all_drone_missions.items():
         print(f"無人機 {drone_id} 的航點：")
         for wp in waypoints:
             print(f" 緯度: {wp.lat:.8f}, 經度: {wp.lon:.8f}, 高度: {wp.alt:.2f}m")
     
-    """
+    
     # 輸出所有無人機的航點

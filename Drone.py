@@ -151,7 +151,7 @@ class Drone():
         """
         return self.vehicle.velocity
  
-    def send_global_velocity(self, north, east, down=0):        
+        
         msg = self.vehicle.message_factory.set_position_target_global_int_encode(
         0,       # time_boot_ms (not used)
         0, 0,    # target system, target component
@@ -173,7 +173,7 @@ class Drone():
         #print("Close connection to vehicle")
         self.vehicle.close()
 
-    def set_rtl_alt(self, rtl_alt=2000):
+    def set_rtl_alt(self, rtl_alt=2000): #設定RTL高度與航點飛行行為(機頭朝向航點，包括返航)
         self.vehicle.parameters['RTL_ALT']=rtl_alt
         while self.vehicle.parameters['RTL_ALT'] != rtl_alt:
             self.vehicle.parameters['RTL_ALT']=rtl_alt
@@ -185,7 +185,7 @@ class Drone():
         
         return True
     
-    def rtl(self):
+    def rtl(self): #block
         while(self.vehicle.mode != VehicleMode("RTL")):
             self.vehicle.mode = VehicleMode("RTL")
             time.sleep(0.2)
@@ -195,8 +195,15 @@ class Drone():
             if distance < 1.5:  # 設定 1.5 米的容忍範圍
                 break
             time.sleep(0.5)           
-
+    
     def upload_mission():
+        pass
+
+    def fly_to_point_non_blocking(self,targetPoint, speed=1):
+        '''
+        Non-blocking flyToPoint, so returning from this function does NOT guarantee the vehicle has reached the target.
+        '''
+        self.vehicle.simple_goto(targetPoint, groundspeed=speed)
         
     
 

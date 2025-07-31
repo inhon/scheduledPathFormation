@@ -26,6 +26,7 @@ drone_offsets_body_frame = {
 waypoint_file = '2.waypoints'
 uav_speed=5 #m/sec
 takeoff_altitude=20 # meter
-rtl_alt=20 #meter
+rtl_alt=2000 #cm
+connection_port=5762
 
 

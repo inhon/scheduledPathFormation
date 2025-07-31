@@ -9,25 +9,20 @@ import formation_setting
 
 
 class FormationFlying(object):
-    def __init__(self, num_uavs: int, port: int, takeoff_altitude: int, rtl_alt: int =2000):
-        self.num_uavs = num_uavs
+    def __init__(self):
+        self.num_uavs = formation_setting.formation_params["num_drones"]
         self.drones = []
         for i in range(num_uavs):
-            self.drones.append(Drone(f'tcp:localhost:{port + 10 * i}')) #port: 5762
+            self.drones.append(Drone(f'tcp:localhost:{formation_setting.connection_port + 10 * i}')) #port: 5762
         self.takeoff_altitude = formation_setting.takeoff_altitude # meter
         self.speed = formation_setting.uav_speed  # m/sec
-        self.rtl_alt=rtl_alt #cm        
-        
+        self.rtl_alt=formation_setting.rtl_alt #cm
+        self.all_drone_missions = helpers.save_all_drone_missions()        
    
-    def set_rtl_alt_all(self):
+    def set_rtl_alt_all(self): ##設定RTL高度與航點飛行行為(機頭朝向航點，包括返航)
         for index, drone in enumerate(self.drones):
             if (drone.set_rtl_alt(self.rtl_alt)==True):
                 print(f"set the UAV {index} RTL_ALT successful")
-                
-    def limit_vector(self, vector):
-        if np.linalg.norm(vector) > self.max_velocity:
-            vector = (vector / np.linalg.norm(vector)) * self.max_velocity
-        return vector
     
     def calculate_formation_velocity(self, i, uav_i_pos):
         ''' 
@@ -97,29 +92,22 @@ class FormationFlying(object):
 
         for i in range(self.num_uavs): # change drone to GUIDED mode and arm
             self.drones[i].set_guided_and_arm()
-            print(f"UAV {i} changed mode to GUIDED and armed successfully!")
+            print(f"UAV {i+1} changed mode to GUIDED and armed successfully!")
             self.drones[i].takeoff(self.takeoff_altitude)
-            print(f"UAV {i} took off successfully!") 
+            print(f"UAV {i+1} took off successfully!") 
         
         while(input("\033[93m {}\033[00m" .format("Make sure All UAVs in the air! ? y/n\n")) != "y"):
             pass
-        # Formation Initialization
-        self.yaw = [0,0,0,0]
-        # formation_center = self.drones[0].read_global_position()  # Use the first drone position as the formation center
-        desired_positions = calculate_desired_positions_global(formation_center, self.formation_offsets) 
-
-        forming = True
-        self.yaw_update_interval =30  # Correct yaw every 30 seconds during waypoint following
-        self.yaw_update_time = time.time()
-
+        
         print("Initializing Formation!")
-        #print("Desired Positions:", [(desired_positions[i].lat, desired_positions[i].lon) for i in range(self.num_uavs)])
+        forming = True
+        #####################################################
         while forming:
             forming = False
-            for i in range(self.num_uavs):
-                current_pos = self.drones[i].read_global_position()
-                desired_pos = desired_positions[i] #LocationGlobalRelative(lat, lon , 0)
-                velocity = np.array(self.drones[i].read_local_velocity()) #a list [vx, vy, vz] in meter/sec
+            for i in range(1,self.num_uavs+1):
+                desired_pos=self.all_drone_missions[i][0] #LocationGlobalRelative(lat, lon , virtual_waypoint中的高度)
+                self.drones[i-1].fly_to_point_non_blocking(desired_pos,self.speed)
+               
 
                 self.yaw[i] = calculate_yaw_angle(current_pos, formation_center) #yaw_degree
                 control_input = self.calculate_control_input_global(current_pos, desired_pos, velocity[:2], i)
