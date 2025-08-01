@@ -199,7 +199,7 @@ class Drone():
     def upload_mission():
         pass
 
-    def fly_to_point_non_blocking(self,targetPoint, speed=1):
+    def fly_to_point_non_blocking(self,targetPoint:LocationGlobalRelative, speed=1): #LocationGlobalRelative
         '''
         Non-blocking flyToPoint, so returning from this function does NOT guarantee the vehicle has reached the target.
         '''

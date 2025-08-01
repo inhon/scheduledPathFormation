@@ -28,5 +28,7 @@ uav_speed=5 #m/sec
 takeoff_altitude=20 # meter
 rtl_alt=2000 #cm
 connection_port=5762
+wp_radius=1.2 #meter
+
 
 

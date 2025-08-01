@@ -80,7 +80,7 @@ def get_bearing(loc1: LocationGlobalRelative, loc2: LocationGlobalRelative) -> f
     return bearing_deg
 
 # 從 .waypoints 檔案讀取航點
-def load_waypoints_from_file(filepath: str) -> list:
+def load_waypoints_from_file(filepath: str) -> list[LocationGlobalRelative]:
     """
     從 Mission Planner .waypoints 檔案讀取航點座標。
     檔案格式預期為：QGC WPL 110 等開頭，然後每行包含航點數據。
@@ -161,7 +161,7 @@ def save_all_drone_missions():
     # 創立儲存所有無人機的航線規劃，字典的key對應無人機編號，內容為虛擬航點的列表
     all_drone_missions = {i: [] for i in range(1, formation_setting.formation_params["num_drones"] + 1)}
 
-    # 將waypoint檔案讀到的航點存入virtual_center_waypoints_objs
+    # 將waypoint檔案讀到的航點存入virtual_center_waypoints_objs列表
     virtual_center_waypoints_objs = load_waypoints_from_file(formation_setting.waypoint_file)
     if not virtual_center_waypoints_objs:
         print("警告：未能讀取到任何虛擬航點")
@@ -184,29 +184,27 @@ def save_all_drone_missions():
         # 獲取這個航點應該設定的偏航角 (隊形的目標方向)
         # 對於非起始的虛擬航點（即第2到第n個航點），加入一個實際航點
         if i > 0 :  # 非起始航點
-            #prev_wp = virtual_center_waypoints_objs[i - 1]
-            #next_wp = virtual_center_waypoints_objs[i]
             #i-1虛擬航點的bearing，由虛擬航點i-1指向虛擬航點i
             target_yaw_degrees = waypoint_bearings[i - 1]
-
             # 計算實際航點，偏移會根據前後航點的方向來計算
             target_yaw_radians = math.radians(target_yaw_degrees)
 
             # 對於每台無人機，計算該點的偏移
             for drone_id in range(1, formation_setting.formation_params["num_drones"] + 1):
-                dx_body, dy_body, dz = formation_setting.drone_offsets_body_frame[drone_id]
+                dx_body, dy_body, dz = formation_setting.drone_offsets_body_frame[drone_id] # drone_offsets_body_frame中dz=0
                 
                 # 根據偏航角旋轉隊形局部偏移量
                 dNorth_rotated = dx_body * math.cos(target_yaw_radians) - dy_body * math.sin(target_yaw_radians)
                 dEast_rotated = dx_body * math.sin(target_yaw_radians) + dy_body * math.cos(target_yaw_radians)
 
                 # 計算實際航點位置
+                # actual_waypoint_location: LocationGlobalRelative(newlat, newlon, newalt)
                 actual_waypoint_location = get_location_metres(
                     virtual_waypoint, 
                     dNorth_rotated,  
                     dEast_rotated,   
                     dz               
-                )
+                ) 
                 #TODO 處裡每台無人機的飛行高度，center的無人機(3號)使用virtual_waypoint的高度，2號減5m，4號加5m
                 all_drone_missions[drone_id].append(actual_waypoint_location)
 
@@ -254,19 +252,45 @@ def plot_mission_waypoints(all_drone_missions):
     plt.axis("equal")
     plt.show()
 
+def transpose_to_location_relative(
+    all_drone_waypoints: dict[int, list[LocationGlobalRelative]]) -> dict[int, list[LocationGlobalRelative]]:
+    max_len = max(len(wps) for wps in all_drone_waypoints.values())
+    transposed = {i: [] for i in range(1,max_len+1)}
+
+    for drone_id, waypoints in all_drone_waypoints.items(): #drone_id 從1開始
+        for i, loc in enumerate(waypoints): # i從0開始
+            transposed[i+1].append(loc)  #各台無人機航點從1開始
+    
+    return transposed
 # 示例用法
 if __name__ == "__main__":
-    # 假設您的航點檔案名為 'mission.waypoints' 或 'mission.txt'
-    # 請將 'mission.waypoints' 替換為您的實際檔案路徑
-    #file_path = '2.waypoints'
-    #extracted_waypoints = load_waypoints_from_file(file_path)
     all_drone_missions = save_all_drone_missions()
+    transposed_all_drone_missions=transpose_to_location_relative(all_drone_missions)
     #plot_mission_waypoints(all_drone_missions)
+    """
+    all_drone_missions 
+    {
+        drone_id1: [(lat1, lon1, alt1), (lat2, lon2, alt2), ...],
+        drone_id2: [(lat1, lon1, alt1), (lat2, lon2, alt2), ...],
+        ...
+    }
+    transposed_all_drone_missions
+    {
+        waypoint1: [drone1的第1點, drone2的第1點, ...],
+        waypoint2: [drone1的第2點, drone2的第2點, ...],
+        ...
+    }
+
            
     for drone_id, waypoints in all_drone_missions.items():
         print(f"無人機 {drone_id} 的航點：")
         for wp in waypoints:
             print(f" 緯度: {wp.lat:.8f}, 經度: {wp.lon:.8f}, 高度: {wp.alt:.2f}m")
     
+    for waypoint_id, waypoints in transposed_all_drone_missions.items():
+        print(f"航點{waypoint_id}：")
+        for wp in waypoints:
+            print(f"航點:{waypoint_id} 緯度: {wp.lat:.8f}, 經度: {wp.lon:.8f}, 高度: {wp.alt:.2f}m")
     
+    """
     # 輸出所有無人機的航點
