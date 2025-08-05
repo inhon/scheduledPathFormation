@@ -44,6 +44,13 @@ class Drone():
             self.vehicle.mode = VehicleMode("GUIDED")
             time.sleep(1)
         return True
+    
+    def set_loiter_mode(self): #緊急情況設定為loiter
+        while self.vehicle.mode != VehicleMode("LOITER"): # LOITER 的高度由throttle 控制
+            self.vehicle.mode = VehicleMode("LOITER")
+            time.sleep(1)
+        return True
+
     def takeoff(self, aTargetAltitude): #無人機到達指定高度才跳出(blocking)
         """
         In Guided mode, take off the UAV to the target altitude (aTargetAltitude). 
@@ -177,7 +184,7 @@ class Drone():
         #print("Close connection to vehicle")
         self.vehicle.close()
 
-    def set_rtl_alt(self, rtl_alt=2000): #設定RTL高度與航點飛行行為(機頭朝向航點，包括返航)
+    def set_rtl_alt(self, rtl_alt=3000): #設定RTL高度與航點飛行行為(機頭朝向航點，包括返航)
         self.vehicle.parameters['RTL_ALT']=rtl_alt
         while self.vehicle.parameters['RTL_ALT'] != rtl_alt:
             self.vehicle.parameters['RTL_ALT']=rtl_alt

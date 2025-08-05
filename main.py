@@ -15,7 +15,7 @@ class FormationFlying(object):
             i: Drone(f'tcp:localhost:{formation_setting.connection_port + 10 * (i-1)}')
             for i in range(1, formation_setting.formation_params['num_drones'] + 1)
         }
-        self.takeoff_altitude = formation_setting.takeoff_altitude # meter
+        self.takeoff_alt = formation_setting.takeoff_alt
         self.speed = formation_setting.uav_speed  # m/sec
         self.rtl_alt=formation_setting.rtl_alt #cm
    
@@ -28,6 +28,11 @@ class FormationFlying(object):
         for i, drone in self.drones.items():               
             if (drone.set_guided_mode()==True):
                 print(f"set the UAV {i} RTL_ALT successful")
+    
+    def set_loiter_mode_all(self):
+        for i, drone in self.drones.items():               
+            if (drone.set_loiter_mode()==True):
+                print(f"set the UAV {i} loiter mode successful")
     
     def initialize_formation(self, waypoints: list[LocationGlobalRelative]): # 紀錄home點、設定guided 模式、解鎖、起飛，飛到第1個航點排列隊形 
         print("Starting Mission!")
@@ -43,7 +48,7 @@ class FormationFlying(object):
         for i in range(1,self.num_uavs+1): # change drone to GUIDED mode and arm
             self.drones[i].set_guided_and_arm()
             print(f"UAV {i} changed mode to GUIDED and armed successfully!")
-            self.drones[i].takeoff(self.takeoff_altitude)
+            self.drones[i].takeoff(self.takeoff_alt[i])
             print(f"UAV {i} took off successfully!") 
         
         while(input("\033[93m {}\033[00m" .format("Initializing Formation ? y/n\n")) != "y"):
@@ -118,8 +123,8 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\nMission interrupted by user!")
         # 在這裡可以加入任何需要在中斷時執行的清理工作
-        formation_flying.rtl_all()  # 回到起始點（或其他安全位置）
-        print("Returning to home locations...")
+        formation_flying.set_loiter_mode_all()  # loiter
+        print("Loitering...")
         
     finally:
         # 這裡可以加入任何程式結束前的清理工作
