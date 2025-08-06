@@ -22,12 +22,12 @@ class FormationFlying(object):
     def set_rtl_alt_all(self): ##設定RTL高度
        for i, drone in self.drones.items():               
             if (drone.set_rtl_alt(self.rtl_alt)==True):
-                print(f"set the UAV {i} GUIDED mode successful")
+                print(f"set the UAV {i} RTL_ALT {self.rtl_alt} successful")
     
     def set_guided_mode_all(self):
         for i, drone in self.drones.items():               
             if (drone.set_guided_mode()==True):
-                print(f"set the UAV {i} RTL_ALT successful")
+                print(f"set the UAV {i} GUIDED mode successful")
     
     def set_loiter_mode_all(self):
         for i, drone in self.drones.items():               
@@ -128,6 +128,6 @@ if __name__ == "__main__":
         
     finally:
         # 這裡可以加入任何程式結束前的清理工作
-        print("Cleaning up... Mission aborted!")
+        pass
 
     
