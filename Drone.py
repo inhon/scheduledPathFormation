@@ -12,7 +12,7 @@ class Drone():
         self.connected = True
         self.home=None
         try:
-            self.vehicle = connect(connection_string, wait_ready=True)            
+            self.vehicle = connect(connection_string, wait_ready=['mode'])            
         except Exception as e:
             print(e)
             self.connected = False

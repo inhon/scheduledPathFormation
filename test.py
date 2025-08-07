@@ -13,7 +13,7 @@ class FormationFlying(object):
         self.num_uavs = formation_setting.formation_params["num_drones"]        
         self.drones = {
             #i: Drone(f'tcp:localhost:{formation_setting.connection_port + 10 * (i-1)}')
-            i: Drone(f'udp:localhost:{formation_setting.connection_port + 10 * (i-1)}')            
+            i: Drone(f'udp:localhost:{formation_setting.connection_port + 10 * (i-1)}')
             for i in range(1, formation_setting.formation_params['num_drones'] + 1)
         }
         self.takeoff_alt = formation_setting.takeoff_alt
@@ -35,6 +35,10 @@ class FormationFlying(object):
             if (drone.set_loiter_mode()==True):
                 print(f"set the UAV {i} loiter mode successful")
     
+    def get_state_all(self):
+        for i, drone in self.drones.items(): 
+            drone_state=drone.get_state()
+            print(f"drone{i} states:{drone_state}")
     def initialize_formation(self, waypoints: list[LocationGlobalRelative]): # 紀錄home點、設定guided 模式、解鎖、起飛，飛到第1個航點排列隊形 
         print("Starting Mission!")
         self.home=[]
@@ -105,28 +109,11 @@ class FormationFlying(object):
 
 if __name__ == "__main__":
     try:
-        all_drone_missions = helpers.save_all_drone_missions() #取得航線dict, {id_1:[(lat, lon, alt),()], is_2:[(lat, lon, alt),()]...} 
-        transposed_all_drone_missions=helpers.transpose_to_location_relative(all_drone_missions)
         formation_flying = FormationFlying()
-        formation_flying.set_rtl_alt_all()
-        #紀錄home點、設定guided 模式、解鎖、起飛，飛到第1個航點排列隊形 
-        formation_flying.initialize_formation(transposed_all_drone_missions[1]) # 1是waypoint id 
-        #執行任務
-        for waypoint_id, waypoints in transposed_all_drone_missions.items():
-            if waypoint_id==1 :
-                continue # 跳過第y一個航點
-            if waypoint_id == max(transposed_all_drone_missions.keys()):
-                continue  # 跳過最後一個航點
-            formation_flying.waypoint_following(waypoints)
-        #return to home locations
-        formation_flying.rtl_all()
-        print("Mission Completed!")
+        formation_flying.get_state_all()
+        print("get_state Completed!")
     except KeyboardInterrupt:
-        print("\nMission interrupted by user!")
-        # 在這裡可以加入任何需要在中斷時執行的清理工作
-        formation_flying.set_loiter_mode_all()  # loiter
-        print("Loitering...")
-        
+        print("\ninterrupted by user!")
     finally:
         # 這裡可以加入任何程式結束前的清理工作
         pass
