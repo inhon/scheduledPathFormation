@@ -4,6 +4,7 @@ import numpy as np
 import time
 import helpers
 from geopy.distance import geodesic
+import formation_setting
 
 class Drone():
     # (22.9049399147239,120.272397994995,27.48,0) 長榮大學 圖書館前 機頭朝北
@@ -11,8 +12,9 @@ class Drone():
         print("Connecting to vehicle on: %s" % connection_string)
         self.connected = True
         self.home=None
+        self.rtl_alt=None        
         try:
-            self.vehicle = connect(connection_string, wait_ready=['mode'])            
+            self.vehicle = connect(connection_string, wait_ready=True, timeout=120)            
         except Exception as e:
             print(e)
             self.connected = False
@@ -185,7 +187,12 @@ class Drone():
         self.vehicle.close()
 
     def set_rtl_alt(self, rtl_alt=3000): #設定RTL高度與航點飛行行為(機頭朝向航點，包括返航)
+        self.rtl_alt=rtl_alt
         self.vehicle.parameters['RTL_ALT']=rtl_alt
+        self.vehicle.parameters['RTL_SPEED']=formation_setting.rtl_speed
+        while self.vehicle.parameters['RTL_SPEED'] != formation_setting.rtl_speed:
+            self.vehicle.parameters['RTL_SPEED']=formation_setting.rtl_speed
+            time.sleep(1)
         while self.vehicle.parameters['RTL_ALT'] != rtl_alt:
             self.vehicle.parameters['RTL_ALT']=rtl_alt
             time.sleep(1)
@@ -199,13 +206,19 @@ class Drone():
     def rtl(self): #block
         while(self.vehicle.mode != VehicleMode("RTL")):
             self.vehicle.mode = VehicleMode("RTL")
-            time.sleep(0.2)
+            time.sleep(0.5)
+        """
         while True:
             current_location = self.vehicle.location.global_relative_frame
-            distance = helpers.calculate_distance_lla(current_location, self.home)
-            if distance < 1.5:  # 設定 1.5 米的容忍範圍
+            current_alt=current_location.alt
+            #current_alt = self.vehicle.location.global_relative_frame
+            #distance = helpers.calculate_distance_lla(current_location, self.home)
+            #if distance < 1.5:  # 設定 1.5 米的容忍範圍
+            if current_alt<self.rtl_alt*0.8 
                 break
-            time.sleep(0.5)           
+            time.sleep(0.5) 
+        """
+                  
     
     def upload_mission():
         pass

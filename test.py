@@ -109,9 +109,11 @@ class FormationFlying(object):
 
 if __name__ == "__main__":
     try:
-        formation_flying = FormationFlying()
-        formation_flying.get_state_all()
-        print("get_state Completed!")
+        #formation_flying = FormationFlying()
+        #formation_flying.get_state_all()
+        #print("get_state Completed!")
+        rtl_alt_temp={key:value*1000 for key, value in formation_setting.takeoff_alt.items()}
+        print(rtl_alt_temp)
     except KeyboardInterrupt:
         print("\ninterrupted by user!")
     finally:

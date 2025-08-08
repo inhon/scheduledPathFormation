@@ -12,18 +12,18 @@ class FormationFlying(object):
     def __init__(self):
         self.num_uavs = formation_setting.formation_params["num_drones"]        
         self.drones = {
-            #i: Drone(f'tcp:localhost:{formation_setting.connection_port + 10 * (i-1)}')
-            i: Drone(f'udp:localhost:{formation_setting.connection_port + 10 * (i-1)}')            
+            i: Drone(f'tcp:localhost:{formation_setting.connection_port + 10 * (i-1)}')
+            #i: Drone(f'udp:localhost:{formation_setting.connection_port + 10 * (i-1)}')            
             for i in range(1, formation_setting.formation_params['num_drones'] + 1)
         }
         self.takeoff_alt = formation_setting.takeoff_alt
         self.speed = formation_setting.uav_speed  # m/sec
-        self.rtl_alt=formation_setting.rtl_alt #cm
+        self.rtl_alt=formation_setting.rtl_alt #cm , dict
    
-    def set_rtl_alt_all(self): ##設定RTL高度
+    def set_rtl_alt_all(self): ##設定RTL高度，依照起飛高度，也就是飛行高度
        for i, drone in self.drones.items():               
-            if (drone.set_rtl_alt(self.rtl_alt)==True):
-                print(f"set the UAV {i} RTL_ALT {self.rtl_alt} successful")
+            if (drone.set_rtl_alt(self.rtl_alt[i])==True):
+                print(f"set the UAV {i} RTL_ALT {(self.rtl_alt[i])/100} m successful")
     
     def set_guided_mode_all(self):
         for i, drone in self.drones.items():               
@@ -38,10 +38,13 @@ class FormationFlying(object):
     def initialize_formation(self, waypoints: list[LocationGlobalRelative]): # 紀錄home點、設定guided 模式、解鎖、起飛，飛到第1個航點排列隊形 
         print("Starting Mission!")
         self.home=[]
+        """
         for i in range(1, self.num_uavs+1):
             home=self.drones[i].get_home_location()
             print(f"UAV {i} home location set: {home.lat}, {home.lon}, {home.alt}")
-            self.home.append(home)          
+            self.home.append(home) 
+        """
+               
  
         while(input("\033[93m {}\033[00m" .format("Change UAVs to GUIDED mode and takeoff? y/n\n")) != "y"):
             pass
@@ -98,7 +101,7 @@ class FormationFlying(object):
         #while(input("\033[93m {}\033[00m" .format("continue ? y/n\n")) != "y"):
         #y    pass
 
-    def rtl_all(self): #1台到達home點上方後，另1台才開始RTL
+    def rtl_all(self): #每台依其RTL高度返航
         for i in range(1,self.num_uavs+1):
             self.drones[i].rtl() #drones是一個dict，key 由1開始
             time.sleep(1)
