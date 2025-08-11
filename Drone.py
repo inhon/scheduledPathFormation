@@ -53,6 +53,11 @@ class Drone():
             time.sleep(1)
         return True
 
+    def set_brake_mode(self):
+        while self.vehicle.mode != VehicleMode("BRAKE"): 
+            self.vehicle.mode = VehicleMode("BRAKE")
+            time.sleep(0.5)
+    
     def takeoff(self, aTargetAltitude): #無人機到達指定高度才跳出(blocking)
         """
         In Guided mode, take off the UAV to the target altitude (aTargetAltitude). 

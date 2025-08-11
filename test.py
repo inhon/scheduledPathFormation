@@ -12,18 +12,18 @@ class FormationFlying(object):
     def __init__(self):
         self.num_uavs = formation_setting.formation_params["num_drones"]        
         self.drones = {
-            #i: Drone(f'tcp:localhost:{formation_setting.connection_port + 10 * (i-1)}')
-            i: Drone(f'udp:localhost:{formation_setting.connection_port + 10 * (i-1)}')
+            i: Drone(f'tcp:localhost:{formation_setting.connection_port + 10 * (i-1)}')
+            #i: Drone(f'udp:localhost:{formation_setting.connection_port + 10 * (i-1)}')            
             for i in range(1, formation_setting.formation_params['num_drones'] + 1)
         }
         self.takeoff_alt = formation_setting.takeoff_alt
         self.speed = formation_setting.uav_speed  # m/sec
-        self.rtl_alt=formation_setting.rtl_alt #cm
+        self.rtl_alt=formation_setting.rtl_alt #cm , dict
    
-    def set_rtl_alt_all(self): ##設定RTL高度
+    def set_rtl_alt_all(self): ##設定RTL高度，依照起飛高度，也就是飛行高度
        for i, drone in self.drones.items():               
-            if (drone.set_rtl_alt(self.rtl_alt)==True):
-                print(f"set the UAV {i} RTL_ALT {self.rtl_alt} successful")
+            if (drone.set_rtl_alt(self.rtl_alt[i])==True):
+                print(f"set the UAV {i} RTL_ALT {(self.rtl_alt[i])/100} m successful")
     
     def set_guided_mode_all(self):
         for i, drone in self.drones.items():               
@@ -35,17 +35,21 @@ class FormationFlying(object):
             if (drone.set_loiter_mode()==True):
                 print(f"set the UAV {i} loiter mode successful")
     
-    def get_state_all(self):
-        for i, drone in self.drones.items(): 
-            drone_state=drone.get_state()
-            print(f"drone{i} states:{drone_state}")
+    def set_brake_mode_all(self):
+        for i, drone in self.drones.items():               
+            if (drone.set_brake_mode()==True):
+                print(f"set the UAV {i} brake mode successful")
+
     def initialize_formation(self, waypoints: list[LocationGlobalRelative]): # 紀錄home點、設定guided 模式、解鎖、起飛，飛到第1個航點排列隊形 
         print("Starting Mission!")
         self.home=[]
+        """
         for i in range(1, self.num_uavs+1):
             home=self.drones[i].get_home_location()
             print(f"UAV {i} home location set: {home.lat}, {home.lon}, {home.alt}")
-            self.home.append(home)          
+            self.home.append(home) 
+        """
+               
  
         while(input("\033[93m {}\033[00m" .format("Change UAVs to GUIDED mode and takeoff? y/n\n")) != "y"):
             pass
@@ -102,20 +106,72 @@ class FormationFlying(object):
         #while(input("\033[93m {}\033[00m" .format("continue ? y/n\n")) != "y"):
         #y    pass
 
-    def rtl_all(self): #1台到達home點上方後，另1台才開始RTL
+    def rtl_all(self): #每台依其RTL高度返航
         for i in range(1,self.num_uavs+1):
             self.drones[i].rtl() #drones是一個dict，key 由1開始
             time.sleep(1)
 
+"""
 if __name__ == "__main__":
     try:
-        #formation_flying = FormationFlying()
-        #formation_flying.get_state_all()
-        #print("get_state Completed!")
-        rtl_alt_temp={key:value*1000 for key, value in formation_setting.takeoff_alt.items()}
-        print(rtl_alt_temp)
+        all_drone_missions = helpers.save_all_drone_missions() #取得航線dict, {id_1:[(lat, lon, alt),()], is_2:[(lat, lon, alt),()]...} 
+        transposed_all_drone_missions=helpers.transpose_to_location_relative(all_drone_missions)
+        formation_flying = FormationFlying()
+        formation_flying.set_rtl_alt_all()
+        #紀錄home點、設定guided 模式、解鎖、起飛，飛到第1個航點排列隊形 
+        formation_flying.initialize_formation(transposed_all_drone_missions[1]) # 1是waypoint id 
+        #執行任務
+        for waypoint_id, waypoints in transposed_all_drone_missions.items():
+            if waypoint_id==1 :
+                continue # 跳過第y一個航點
+            if waypoint_id == max(transposed_all_drone_missions.keys()):
+                continue  # 跳過最後一個航點
+            formation_flying.waypoint_following(waypoints)
+            #TODO brake 後的處理
+        #return to home locations
+        formation_flying.rtl_all()
+        print("Mission Completed!")
     except KeyboardInterrupt:
-        print("\ninterrupted by user!")
+        print("\nMission interrupted by user!")
+        # 在這裡可以加入任何需要在中斷時執行的清理工作
+        formation_flying.set_loiter_mode_all()  # loiter
+        print("Loitering...")
+        
+    finally:
+        # 這裡可以加入任何程式結束前的清理工作
+        pass
+"""
+
+
+    
+
+if __name__ == "__main__":
+    try:
+        all_drone_missions = helpers.save_all_drone_missions() #取得航線dict, {id_1:[(lat, lon, alt),()], is_2:[(lat, lon, alt),()]...} 
+        transposed_all_drone_missions=helpers.transpose_to_location_relative(all_drone_missions)
+        formation_flying = FormationFlying()
+        formation_flying.set_rtl_alt_all()
+        #紀錄home點、設定guided 模式、解鎖、起飛，飛到第1個航點排列隊形 
+        formation_flying.initialize_formation(transposed_all_drone_missions[1]) # 1是waypoint id 
+        #執行任務
+        for waypoint_id, waypoints in transposed_all_drone_missions.items():
+            if waypoint_id==1 :
+                continue # 跳過第y一個航點
+            if waypoint_id == max(transposed_all_drone_missions.keys()):
+                continue  # 跳過最後一個航點
+            formation_flying.waypoint_following(waypoints)
+            #TODO brake 後的處理
+        #return to home locations
+        formation_flying.rtl_all()
+        print("Mission Completed!")
+    except KeyboardInterrupt:
+        print("\nMission interrupted by user!")
+        # 在這裡可以加入任何需要在中斷時執行的清理工作
+        formation_flying.set_brake_mode_all()  # brake
+        formation_flying.rtl_all()
+        #print("Loitering...")
+        #continue
+        
     finally:
         # 這裡可以加入任何程式結束前的清理工作
         pass

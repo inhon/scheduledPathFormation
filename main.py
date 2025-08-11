@@ -35,6 +35,11 @@ class FormationFlying(object):
             if (drone.set_loiter_mode()==True):
                 print(f"set the UAV {i} loiter mode successful")
     
+    def set_brake_all(self):
+        for i, drone in self.drones.items():               
+            if (drone.set_brake_mode()==True):
+                print(f"set the UAV {i} brake mode successful")
+
     def initialize_formation(self, waypoints: list[LocationGlobalRelative]): # 紀錄home點、設定guided 模式、解鎖、起飛，飛到第1個航點排列隊形 
         print("Starting Mission!")
         self.home=[]
