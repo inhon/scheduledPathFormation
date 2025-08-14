@@ -35,7 +35,7 @@ class FormationFlying(object):
             if (drone.set_loiter_mode()==True):
                 print(f"set the UAV {i} loiter mode successful")
     
-    def set_brake_all(self):
+    def set_brake_mode_all(self):
         for i, drone in self.drones.items():               
             if (drone.set_brake_mode()==True):
                 print(f"set the UAV {i} brake mode successful")
@@ -73,17 +73,17 @@ class FormationFlying(object):
             still_forming = False
             for i in range(1,self.num_uavs+1):
                 desired_pos=waypoints[i-1] #
-                current_pos=self.drones[i].read_global_position() #drone: 編號從0開始 global_relative_frame
+                current_pos=self.drones[i].read_global_position() #drone: 編號從1開始 global_relative_frame
                 distance_to_formation = geodesic((current_pos.lat, current_pos.lon), (desired_pos.lat, desired_pos.lon)).meters
                 print(f"Drone {i} Distance to Formation: {distance_to_formation}")
                 if distance_to_formation > formation_setting.wp_radius:
-                    forstill_formingming = True
+                    still_forming = True
                 time.sleep(1) 
         
         print("Initial Formation Achieved! Proceeding to Waypoints")
-        time.sleep(1)
-        #while(input("\033[93m {}\033[00m" .format("continue ? y/n\n")) != "y"):
-        #    pass
+        #time.sleep(2y)
+        while(input("\033[93m {}\033[00m" .format("continue ? y/n\n")) != "y"):
+            pass
 
     def waypoint_following(self, waypoints: list[LocationGlobalRelative]):
         for i in range(1,self.num_uavs+1):
@@ -110,7 +110,7 @@ class FormationFlying(object):
         for i in range(1,self.num_uavs+1):
             self.drones[i].rtl() #drones是一個dict，key 由1開始
             time.sleep(1)
-
+   
 if __name__ == "__main__":
     try:
         all_drone_missions = helpers.save_all_drone_missions() #取得航線dict, {id_1:[(lat, lon, alt),()], is_2:[(lat, lon, alt),()]...} 
@@ -122,18 +122,23 @@ if __name__ == "__main__":
         #執行任務
         for waypoint_id, waypoints in transposed_all_drone_missions.items():
             if waypoint_id==1 :
-                continue # 跳過第y一個航點
+                continue # 跳過第一個航點
             if waypoint_id == max(transposed_all_drone_missions.keys()):
-                continue  # 跳過最後一個航點
+                continue  # 跳過最後一個航點，最後一個航點只是將隊形朝向第一個航點
             formation_flying.waypoint_following(waypoints)
+            #TODO brake 後的處理
         #return to home locations
         formation_flying.rtl_all()
         print("Mission Completed!")
     except KeyboardInterrupt:
         print("\nMission interrupted by user!")
         # 在這裡可以加入任何需要在中斷時執行的清理工作
-        formation_flying.set_loiter_mode_all()  # loiter
-        print("Loitering...")
+        formation_flying.set_brake_mode_all()  # brake
+        while(input("\033[93m {}\033[00m" .format("Change UAVs to RTL? y/n\n")) != "y"):
+            pass
+        formation_flying.rtl_all()
+        #print("Loitering...")
+        #continue
         
     finally:
         # 這裡可以加入任何程式結束前的清理工作
