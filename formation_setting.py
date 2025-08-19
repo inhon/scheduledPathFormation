@@ -1,11 +1,11 @@
 
 uav_speed=5 #m/sec
-connection_port=5762
-#connection_port=14551
+#connection_port=5762
+connection_port=14551
 
 wp_radius=1.2 #meter
 #waypoint_file = 'n1.waypoints' #n1.waypoints 實飛測試用
-waypoint_file = 'n1.waypoints'
+waypoint_file = 'n2.waypoints'
 
 
 """
@@ -18,10 +18,11 @@ waypoint_file = 'n1.waypoints'
 formation_params = {
     "num_drones": 5,
     "lead_drone_id": 3,  # 隊形中心點對應的無人機，通常在倒V字頂點 (U3)
-    "spacing_x": 10,   # 無人機在隊形橫向（左右）的間距 (米)
-    "spacing_y": 10,   # 無人機在隊形縱向（前後）的間距 (米)
-    "altitude": 20     # 編隊的預設飛行高度 (米) 和.waypoint 檔案內一致
+    "spacing_x": 5,   # 無人機在隊形橫向（左右）的間距 (米)
+    "spacing_y": 5,   # 無人機在隊形縱向（前後）的間距 (米)
+    "altitude": 15     # 編隊的預設飛行高度 (米) 和.waypoint 檔案內一致
 }
+"""
 """
 # --- 1. 定義隊形參數 ---
 #       u2
@@ -34,8 +35,8 @@ formation_params = {
     "spacing_y": 5,   # 無人機在隊形縱向（前後）的間距 (米)
     "altitude": 15     # 編隊的預設飛行高度 (米) 和.waypoint 檔案內一致
 }
-
 """
+
 # --- 1. 定義隊形參數 ---
 #       u2
 #   u1      u3
@@ -48,7 +49,7 @@ formation_params = {
     "spacing_y": 5,   # 無人機在隊形縱向（前後）的間距 (米)
     "altitude": 15     # 編隊的預設飛行高度 (米) 和.waypoint 檔案內一致
 }
-"""
+
 
 # 定義每台無人機相對於隊形中心點的偏移量 (dx_body, dy_body, dz) (FRD: xyz)
 # 這裡的 dx_body 和 dy_body 是在隊形自身的局部座標系(FRD)中定義的。
@@ -65,18 +66,19 @@ drone_offsets_body_frame = {
     5: (-2 * formation_params["spacing_x"], 2 * formation_params["spacing_y"], -2*nav_alt_spacing)   # U5: 最右後
 }
 """
+"""
 drone_offsets_body_frame = {
     1: (-1 * formation_params["spacing_x"], -1 * formation_params["spacing_y"], 1*nav_alt_spacing), # U1: 左後
     2: (0, 0, 0*nav_alt_spacing)                                                              # U2: 中心 (領頭機)
 }
-
 """
+
 drone_offsets_body_frame = {
     1: (-1 * formation_params["spacing_x"], -1 * formation_params["spacing_y"], 1*nav_alt_spacing), # U1: 左後
     2: (0, 0, 0*nav_alt_spacing),                                                                  # U2: 中心 (領頭機)
     3: (-1 * formation_params["spacing_x"], 1 * formation_params["spacing_y"], -1*nav_alt_spacing)  # U3: 右後
 }
-"""
+
 
 #takeoff_altitude=20 # meter
 #takeoff_alt_diff=2 #meter
@@ -89,19 +91,18 @@ takeoff_alt={
     5:formation_params["altitude"]+(1)*2*nav_alt_spacing,
 }
 """
-
+"""
 takeoff_alt={
     1:formation_params["altitude"]+(-1)*1*nav_alt_spacing,
     2:formation_params["altitude"]
 }
-
 """
 takeoff_alt={
     1:formation_params["altitude"]+(-1)*1*nav_alt_spacing,
     2:formation_params["altitude"],
     3:formation_params["altitude"]+(1)*1*nav_alt_spacing
 }
-"""
+
 
 rtl_alt= {key: value *100 for key, value in takeoff_alt.items()} #rtl_alt(cm), takeoff_alt(m)
 rtl_speed=500 #cm/s

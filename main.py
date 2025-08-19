@@ -12,8 +12,8 @@ class FormationFlying(object):
     def __init__(self):
         self.num_uavs = formation_setting.formation_params["num_drones"]        
         self.drones = {
-            i: Drone(f'tcp:localhost:{formation_setting.connection_port + 10 * (i-1)}')
-            #i: Drone(f'udp:localhost:{formation_setting.connection_port + 10 * (i-1)}')            
+            #i: Drone(f'tcp:localhost:{formation_setting.connection_port + 10 * (i-1)}')
+            i: Drone(f'udp:localhost:{formation_setting.connection_port + 10 * (i-1)}')            
             for i in range(1, formation_setting.formation_params['num_drones'] + 1)
         }
         self.takeoff_alt = formation_setting.takeoff_alt
